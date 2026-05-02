@@ -32,6 +32,7 @@ To use LTCGI, all objects that should receive lighting must use a compatible sha
 * [Mochie's Unity Shaders](https://github.com/MochiesCode/Mochies-Unity-Shaders)
 * [Hekky Shaders](https://github.com/hyblocker/hekky-shaders)
 * [z3y's Shaders](https://github.com/z3y/shaders)
+* [Poiyomi Shaders](https://www.poiyomi.com/shading/ltcgi)
 * Basic "Unlit" Test Shader (included)
 * Surface Shader (included)
 
