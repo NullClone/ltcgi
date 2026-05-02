@@ -110,19 +110,12 @@ namespace pi.LTCGI.LVAdapter
 
             if (refLightVolumeManager != null && refPostProcessorCRT != null)
             {
-                // register the CRT as a post processor
-                if (refLightVolumeManager.TryGetComponent<LightVolumeSetup>(out var lvSetup))
-                {
-                    refLightVolumeManager.AtlasPostProcessors ??= new CustomRenderTexture[0]; // workaround for NRE on init
-                    lvSetup.RegisterPostProcessorCRT(refPostProcessorCRT);
-                }
-
                 // find LTCGI enabled light volumes
                 tmpLTCGIEnabledLightVolumeIDs.Clear();
                 for (int i = 0; i < refLightVolumeManager.LightVolumeInstances.Length; i++)
                 {
                     var lv = refLightVolumeManager.LightVolumeInstances[i];
-                    if (lv.TryGetComponent<LightVolumeLTCGI>(out _))
+                    if (lv != null && lv.TryGetComponent<LightVolumeLTCGI>(out _))
                     {
                         tmpLTCGIEnabledLightVolumeIDs.Add(i);
                     }
@@ -143,6 +136,17 @@ namespace pi.LTCGI.LVAdapter
                 {
                     refLTCGIEnabledLightVolumeIDs = tmpLTCGIEnabledLightVolumeIDs.ToArray();
                     Debug.Log($"LV_LTCGI_Adapter: Found and set {refLTCGIEnabledLightVolumeIDs.Length} LTCGI enabled light volumes.");
+
+                    // register the CRT as a post processor
+                    if (refLightVolumeManager.TryGetComponent<LightVolumeSetup>(out var lvSetup))
+                    {
+                        refLightVolumeManager.AtlasPostProcessors ??= new CustomRenderTexture[0]; // workaround for NRE on init
+
+                        if (refLTCGIEnabledLightVolumeIDs.Length == 0)
+                            lvSetup.UnregisterPostProcessorCRT(refPostProcessorCRT);
+                        else
+                            lvSetup.RegisterPostProcessorCRT(refPostProcessorCRT);
+                    }
                 }
             }
         }
@@ -176,24 +180,7 @@ namespace pi.LTCGI.LVAdapter
             if (LTCGI_Controller.Singleton == null)
                 return;
 
-            LTCGI_Controller.Singleton.GetComponents(tmpUdonBehaviours);
-            if (tmpUdonBehaviours.Count == 0)
-                return;
-
-            var foundLVAdapter = false;
-            foreach (var ub in tmpUdonBehaviours)
-            {
-                var proxy = UdonSharpEditorUtility.GetProxyBehaviour(ub);
-                if (proxy is LV_LTCGI_Adapter adapter)
-                {
-                    foundLVAdapter = true;
-                    LV_LTCGI_Adapter.SetupDependencies(ref adapter.LightVolumeManager, ref adapter.PostProcessorCRT, ref adapter.LTCGIEnabledLightVolumeIDs, isUI: false);
-                    UdonSharpEditorUtility.CopyProxyToUdon(adapter);
-                    break;
-                }
-            }
-
-            if (!foundLVAdapter)
+            if (!FindAndUpdateLVAdapter())
             {
                 var newUdon = LTCGI_Controller.Singleton.gameObject.AddUdonSharpComponent<LV_LTCGI_Adapter>();
                 LV_LTCGI_Adapter.SetupDependencies(ref lightVolumeManager, ref postProcessorCRT, ref newUdon.LTCGIEnabledLightVolumeIDs, isUI: false);
@@ -228,6 +215,34 @@ namespace pi.LTCGI.LVAdapter
             }
         }
 
+        private static bool FindAndUpdateLVAdapter()
+        {
+            LTCGI_Controller.Singleton.GetComponents(tmpUdonBehaviours);
+            if (tmpUdonBehaviours.Count == 0)
+                return false;
+
+            var foundLVAdapter = false;
+            foreach (var ub in tmpUdonBehaviours)
+            {
+                var proxy = UdonSharpEditorUtility.GetProxyBehaviour(ub);
+                if (proxy is LV_LTCGI_Adapter adapter)
+                {
+                    if (foundLVAdapter)
+                    {
+                        Debug.LogWarning("Multiple LV_LTCGI_Adapter components found on LTCGI_Controller.", adapter);
+                        DestroyImmediate(adapter);
+                    }
+                    else
+                    {
+                        foundLVAdapter = true;
+                        LV_LTCGI_Adapter.SetupDependencies(ref adapter.LightVolumeManager, ref adapter.PostProcessorCRT, ref adapter.LTCGIEnabledLightVolumeIDs, isUI: false);
+                        UdonSharpEditorUtility.CopyProxyToUdon(adapter);
+                    }
+                }
+            }
+            return foundLVAdapter;
+        }
+
         public override void OnInspectorGUI()
         {
             if (UdonSharpGUI.DrawDefaultUdonSharpBehaviourHeader(target))
@@ -255,6 +270,12 @@ namespace pi.LTCGI.LVAdapter
         {
             if (LTCGI_Controller.Singleton == null || LTCGI_Controller.Singleton.bakeInProgress)
                 return;
+
+            if (!FindAndUpdateLVAdapter())
+            {
+                Debug.LogWarning("LV_LTCGI_Adapter: Could not find LV_LTCGI_Adapter during pre-atlas creation. Skipping LTCGI LV bake.");
+                return;
+            }
 
             var curscene = EditorSceneManager.GetActiveScene().name;
             foreach (var volume in obj)
