@@ -275,6 +275,33 @@ public class LTCGI_UdonAdapter : MonoBehaviour
         return band;
     }
 
+    public void _SetALDelay(int screen, int delay)
+    {
+        if (screen < 0 || delay < 0 || delay > 127) return;
+
+        uint flags = getFlags(screen);
+
+        // Clear flags
+        flags &= ~(0b1111111u << 16);
+
+        // Set new flags
+        flags |= ((uint)delay & 0b1111111u) << 16;
+
+        setFlags(screen, flags);
+
+        if (!this.enabled) Update();
+    }
+
+    public int _GetALDelay(int screen)
+    {
+        if (screen < 0) return -1;
+
+        uint flags = getFlags(screen);
+        int delay = (int)((flags >> 16) & 0b1111111u);
+
+        return delay;
+    }
+
     public void _SetVideoTexture(Texture texture)
     {
         BlurCRTInput.material.SetTexture("_MainTex", texture);
