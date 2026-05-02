@@ -694,10 +694,19 @@ namespace pi.LTCGI
                 prev = File.ReadAllBytes(path);
             }
 
-            File.WriteAllBytes(path, exr);
-            AssetDatabase.Refresh();
-            
+            if (!existed || !prev.SequenceEqual(exr))
+            {
+                File.WriteAllBytes(path, exr);
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            }
+
             var asset = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (asset == null && File.Exists(path))
+            {
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                asset = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            }
+
             string assetPath = AssetDatabase.GetAssetPath(asset);
             var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
             if (importer != null && (!prev.SequenceEqual(exr) || importer.npotScale != TextureImporterNPOTScale.None))
