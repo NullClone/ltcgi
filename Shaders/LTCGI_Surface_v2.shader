@@ -14,6 +14,8 @@
         [ToggleUI] _LTCGI ("LTCGI enabled", Float) = 1.0
         _LTCGI_DiffuseColor ("LTCGI Diffuse Color", Color) = (1,1,1,1)
         _LTCGI_SpecularColor ("LTCGI Specular Color", Color) = (1,1,1,1)
+
+        [Enum(CullMode)] _CullMode ("Cull Mode", Float) = 2
     }
     SubShader
     {
@@ -21,6 +23,8 @@
         // It is required so that renderers using this material will be updated by the controller.
         Tags { "RenderType"="Opaque" "LTCGI"="_LTCGI" }
         LOD 200
+
+        Cull [_CullMode]
 
         CGPROGRAM
         #pragma surface surf Standard fullforwardshadows
@@ -60,7 +64,9 @@
             float2 uv_BumpMap;
             float2 uv2_LightMap;
             float3 worldPos;
-            float3 worldNormal; INTERNAL_DATA
+            float3 worldNormal;
+            float facing : SV_IsFrontFace;
+            INTERNAL_DATA
         };
 
         half _Glossiness;
@@ -106,6 +112,10 @@
 
             o.Normal = UnpackNormal(tex2D(_BumpMap, IN.uv_BumpMap));
             float3 worldSpaceNormal = normalize(WorldNormalVector(IN, o.Normal));
+
+            if (IN.facing <= 0.0f) {
+                worldSpaceNormal = -worldSpaceNormal;
+            }
 
             if (_LTCGI) {
                 // and lastly, here's how we call the APIv2 version of LTCGI:
