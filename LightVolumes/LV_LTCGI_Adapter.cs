@@ -37,7 +37,7 @@ namespace pi.LTCGI.LVAdapter
         private Matrix4x4[] lightVolumeFwdWorldMatrices = new Matrix4x4[0];
         private long updateCount;
 
-        private const int LVsPerSlice = 16; // keep in sync with shader
+        private const int LVsPerSlice = 24; // keep in sync with shader
 
         private void Start()
         {
@@ -79,7 +79,23 @@ namespace pi.LTCGI.LVAdapter
             var total = PostProcessorRT.volumeDepth + LVsPerSlice - 1;
             for (int i = 0; i < total; i += LVsPerSlice)
             {
-                PostProcessorMat.SetFloat("_Udon_LTCGI_LV_LayerOffset", i);
+                PostProcessorMat.SetFloat(lightVolumeLayerOffsetID, i);
+
+                // okay listen up, it's about to get stupid:
+                // we want to take the 3D volume that VRCLV outputs and run it through a shader for every voxel once per frame
+                // originally this used a Custom Render Texture, but Unity in its endless wisdom decided to dispatch a new drawcall for every depth slice
+                // so to avoid adding hundreds of batches to every frame, we do a Graphics.Blit
+                // but hold on, how is our blit shader going to target a slice?
+                // easy: SV_RenderTargetArrayIndex and a geometry shader
+                // that's right, Unity blits a single Quad that would usually just go to the first depth slice, but we can have our shader override it!
+                // so we generate `LVsPerSlice` quads in geom targeting slice `(0 to LVsPerSlice) + i` (i for offset if we need more dispatches)
+                // there is one last crucial detail: the DummyTextureArray
+                // for SV_RenderTargetArrayIndex to work, the destDepthSlice parameter of Blit needs to be -1
+                // however, Udon does not expose a variant that takes both destDepthSlice _and_ a custom Material
+                // luckily, passing a `Texture2DArray` as the _source_ of a Blit operation with no explicit `destDepthSlice` does the trick!
+                // why only a 2D array and not a 3D texture? No idea, but this is how Unity does things apparently
+                // we don't use the input texture at all in our shader, so we bind a random tiny 1x1x1 dummy texture just to trigger the all-slices binding logic
+                // computers should be banned
 
                 #if UDONSHARP
                 VRCGraphics

@@ -27,7 +27,7 @@ Shader "LTCGI/LV Apply (Blit)"
             #pragma require geometry
 
             // keep in sync with U# adapter
-            #define LV_MAX_SLICES 16
+            #define LV_MAX_SLICES 24
             uniform float _Udon_LTCGI_LV_LayerDepth;
             uniform float _Udon_LTCGI_LV_LayerOffset;
 
