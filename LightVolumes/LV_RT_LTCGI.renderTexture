@@ -1,12 +1,12 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!86 &8600000
-CustomRenderTexture:
+--- !u!84 &8400000
+RenderTexture:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: LV_CRT_LTCGI
+  m_Name: LV_RT_LTCGI
   m_ImageContentsHash:
     serializedVersion: 2
     Hash: 00000000000000000000000000000000
@@ -14,8 +14,8 @@ CustomRenderTexture:
   m_DownscaleFallback: 0
   m_IsAlphaChannelOptional: 0
   serializedVersion: 5
-  m_Width: 38
-  m_Height: 17
+  m_Width: 111
+  m_Height: 321
   m_AntiAliasing: 1
   m_MipCount: -1
   m_DepthStencilFormat: 0
@@ -29,27 +29,12 @@ CustomRenderTexture:
   m_EnableRandomWrite: 0
   m_TextureSettings:
     serializedVersion: 2
-    m_FilterMode: 1
+    m_FilterMode: 2
     m_Aniso: 1
     m_MipBias: 0
     m_WrapU: 1
     m_WrapV: 1
     m_WrapW: 1
   m_Dimension: 3
-  m_VolumeDepth: 152
+  m_VolumeDepth: 53
   m_ShadowSamplingMode: 2
-  m_Material: {fileID: 2100000, guid: e2072418259fd3e48b0f77a6b83e5a5a, type: 2}
-  m_InitSource: 0
-  m_InitMaterial: {fileID: 0}
-  m_InitColor: {r: 0, g: 0, b: 0, a: 0}
-  m_InitTexture: {fileID: 0}
-  m_UpdateMode: 1
-  m_InitializationMode: 0
-  m_UpdateZoneSpace: 0
-  m_CurrentUpdateZoneSpace: 0
-  m_UpdateZones: []
-  m_UpdatePeriod: 0
-  m_ShaderPass: 0
-  m_CubemapFaceMask: 4294967295
-  m_DoubleBuffered: 0
-  m_WrapUpdateZones: 0

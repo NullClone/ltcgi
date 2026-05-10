@@ -2,7 +2,7 @@ Shader "LTCGI/LV Apply (Blit)"
 {
     Properties
     {
-        _MainTex ("Base", 3D) = "black" {}
+        _LV_Volume ("Volume", 3D) = "black" {}
         _Directionality ("Directionality", Range(0.0, 2.0)) = 1.0
     }
     SubShader
@@ -15,17 +15,81 @@ Shader "LTCGI/LV Apply (Blit)"
             Name "LTCGI LV Apply"
 
             CGPROGRAM
+            #include "UnityCG.cginc"
             //#define LTCGI_FAST_SAMPLING
-            #include "UnityCustomRenderTexture.cginc"
             //#include "Packages/red.sim.lightvolumes/Shaders/LightVolumes.cginc" // open coded
             #include "Packages/at.pimaker.ltcgi/Shaders/LTCGI.cginc"
 
-            #pragma vertex CustomRenderTextureVertexShader
+            #pragma vertex vert
+            #pragma geometry geom
             #pragma fragment frag
-            #pragma target 3.0
+            #pragma target 5.0
+            #pragma require geometry
 
-            uniform Texture3D<float4> _MainTex;
-            uniform SamplerState sampler_MainTex;
+            // keep in sync with U# adapter
+            #define LV_MAX_SLICES 16
+            uniform float _Udon_LTCGI_LV_LayerDepth;
+            uniform float _Udon_LTCGI_LV_LayerOffset;
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv     : TEXCOORD0;
+            };
+
+            struct v2g
+            {
+                float4 vertex : SV_POSITION;
+                float2 uv     : TEXCOORD0;
+            };
+
+            struct v2f
+            {
+                float4 vertex         : SV_POSITION;
+                float3 globalTexcoord : TEXCOORD0;
+                uint   slice          : SV_RenderTargetArrayIndex;
+            };
+
+            v2g vert(appdata v)
+            {
+                v2g o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.uv = v.uv;
+                return o;
+            }
+
+            [maxvertexcount(3 * LV_MAX_SLICES)]
+            void geom(triangle v2g input[3], inout TriangleStream<v2f> stream)
+            {
+                uint depth = (uint)_Udon_LTCGI_LV_LayerDepth;
+                float invDepth = 1.0 / max((float)depth, 1.0);
+
+                [loop]
+                for (uint j = 0; j < LV_MAX_SLICES; ++j)
+                {
+                    uint s = j + (uint)_Udon_LTCGI_LV_LayerOffset;
+
+                    // early out when we reach the actual slice count
+                    if (s >= depth)
+                        break;
+
+                    float w = (s + 0.5) * invDepth;
+
+                    [unroll]
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        v2f o;
+                        o.vertex = input[i].vertex;
+                        o.globalTexcoord = float3(input[i].uv, w);
+                        o.slice = s;
+                        stream.Append(o);
+                    }
+                    stream.RestartStrip();
+                }
+            }
+
+            uniform Texture3D<float4> _LV_Volume;
+            uniform SamplerState      sampler_LV_Volume;
 
             uniform float _Directionality;
 
@@ -86,7 +150,7 @@ Shader "LTCGI/LV Apply (Blit)"
                     if (!any(color)) continue;
 
                     ltcgi_flags flags = ltcgi_parse_flags(asuint(extra.w), true);
-                    
+
                     #ifdef LTCGI_ALWAYS_LTC_DIFFUSE
                         // can't honor a lightmap-only light in this mode
                         if (flags.lmdOnly) continue;
@@ -168,17 +232,17 @@ Shader "LTCGI/LV Apply (Blit)"
                 }
             }
 
-            float4 frag(v2f_customrendertexture i) : COLOR
+            float4 frag(v2f i) : SV_Target
             {
                 float3 uvw = i.globalTexcoord.xyz;
-                float4 val = _MainTex.SampleLevel(sampler_MainTex, uvw, 0);
+                float4 val = _LV_Volume.SampleLevel(sampler_LV_Volume, uvw, 0);
 
                 if (!_UdonLightVolumeEnabled)
                     return val;
 
                 // calculate padding from dimension side (one sample in texture space)
                 uint3 dim = 0;
-                _MainTex.GetDimensions(dim.x, dim.y, dim.z);
+                _LV_Volume.GetDimensions(dim.x, dim.y, dim.z);
                 padding = float3(1.0f / dim.x, 1.0f / dim.y, 1.0f / dim.z);
 
                 uint ltcgiVolumes = asuint(_UdonLightVolumesWithLTCGI);

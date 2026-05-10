@@ -26,20 +26,22 @@ namespace pi.LTCGI.LVAdapter
     public class LV_LTCGI_Adapter : UdonSharpBehaviour
     {
         public LightVolumeManager LightVolumeManager;
-        public CustomRenderTexture PostProcessorCRT;
+        public RenderTexture PostProcessorRT;
+        public Material PostProcessorMat;
+        public Texture2DArray DummyTextureArray;
         public int[] LTCGIEnabledLightVolumeIDs = new int[0];
 
         private int lightVolumesWithLTCGIID;
         private int lightVolumeFwdWorldMatrixID;
+        private int lightVolumeLayerOffsetID;
         private Matrix4x4[] lightVolumeFwdWorldMatrices = new Matrix4x4[0];
         private long updateCount;
 
+        private const int LVsPerSlice = 16; // keep in sync with shader
+
         private void Start()
         {
-            lightVolumeFwdWorldMatrixID = VRCShader.PropertyToID("_UdonLightVolumeFwdWorldMatrix");
-            VRCShader.SetGlobalMatrixArray(lightVolumeFwdWorldMatrixID, new Matrix4x4[32]);
-            lightVolumesWithLTCGIID = VRCShader.PropertyToID("_UdonLightVolumesWithLTCGI");
-            VRCShader.SetGlobalFloat(lightVolumesWithLTCGIID, BitConverter.Int32BitsToSingle(0));
+            Init();
             Debug.Log($"LV_LTCGI_Adapter initialized with {LTCGIEnabledLightVolumeIDs.Length} LTCGI enabled light volumes.", this);
             foreach (var id in LTCGIEnabledLightVolumeIDs)
             {
@@ -47,10 +49,45 @@ namespace pi.LTCGI.LVAdapter
             }
         }
 
+        private void Init()
+        {
+            lightVolumeLayerOffsetID = VRCShader.PropertyToID("_Udon_LTCGI_LV_LayerOffset");
+            PostProcessorMat.SetFloat("_Udon_LTCGI_LV_LayerDepth", PostProcessorRT.volumeDepth);
+            lightVolumeFwdWorldMatrixID = VRCShader.PropertyToID("_UdonLightVolumeFwdWorldMatrix");
+            VRCShader.SetGlobalMatrixArray(lightVolumeFwdWorldMatrixID, new Matrix4x4[32]);
+            lightVolumesWithLTCGIID = VRCShader.PropertyToID("_UdonLightVolumesWithLTCGI");
+            VRCShader.SetGlobalFloat(lightVolumesWithLTCGIID, BitConverter.Int32BitsToSingle(0));
+        }
+
+        internal void EditorUpdate()
+        {
+            Init();
+            DoUpdate();
+            DoLTCGIBlit();
+        }
+
         private void LateUpdate() // after Update() in LightVolumeManager for the frame
         {
-            if (!LightVolumeManager.AutoUpdateVolumes && updateCount > 0) return;
-            DoUpdate();
+            if (LightVolumeManager.AutoUpdateVolumes || updateCount == 0)
+                DoUpdate();
+
+            DoLTCGIBlit();
+        }
+
+        private void DoLTCGIBlit()
+        {
+            var total = PostProcessorRT.volumeDepth + LVsPerSlice - 1;
+            for (int i = 0; i < total; i += LVsPerSlice)
+            {
+                PostProcessorMat.SetFloat("_Udon_LTCGI_LV_LayerOffset", i);
+
+                #if UDONSHARP
+                VRCGraphics
+                #else
+                Graphics
+                #endif
+                    .Blit(DummyTextureArray, PostProcessorRT, PostProcessorMat);
+            }
         }
 
         public void DoUpdate()
@@ -81,7 +118,13 @@ namespace pi.LTCGI.LVAdapter
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
         private static readonly List<int> tmpLTCGIEnabledLightVolumeIDs = new();
-        public static void SetupDependencies(ref LightVolumeManager refLightVolumeManager, ref CustomRenderTexture refPostProcessorCRT, ref int[] refLTCGIEnabledLightVolumeIDs, bool isUI)
+        public static void SetupDependencies(
+            ref LightVolumeManager refLightVolumeManager,
+            ref RenderTexture refPostProcessorRT,
+            ref Material refPostProcessorMat,
+            ref Texture2DArray refDummyTextureArray,
+            ref int[] refLTCGIEnabledLightVolumeIDs,
+            bool isUI)
         {
             if (refLightVolumeManager == null)
             {
@@ -96,19 +139,36 @@ namespace pi.LTCGI.LVAdapter
                 }
             }
 
-            if (refPostProcessorCRT == null)
+            if (refPostProcessorRT == null || refPostProcessorMat == null || refDummyTextureArray == null)
             {
                 var thisPath = AssetDatabase.GUIDToAssetPath("b9ee507ae056a484ba791c34abfe3982"); // this script's GUID
                 var thisDir = System.IO.Path.GetDirectoryName(thisPath);
-                var crtPath = System.IO.Path.Combine(thisDir, "LV_CRT_LTCGI.asset");
-                refPostProcessorCRT = AssetDatabase.LoadAssetAtPath<CustomRenderTexture>(crtPath);
-                if (refPostProcessorCRT == null)
+                var crtPath = System.IO.Path.Combine(thisDir, "LV_RT_LTCGI.renderTexture");
+                refPostProcessorRT = AssetDatabase.LoadAssetAtPath<RenderTexture>(crtPath);
+
+                if (refPostProcessorRT == null)
                 {
-                    Debug.LogWarning("LV_LTCGI_Adapter: Post Processor CRT not found. Please create it in the same folder as this script or reimport the package.");
+                    Debug.LogError($"LV_LTCGI_Adapter: Could not load post processor render texture at {crtPath}.");
+                }
+
+                var matPath = System.IO.Path.Combine(thisDir, "LV_Mat_LTCGI.mat");
+                refPostProcessorMat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+
+                if (refPostProcessorMat == null)
+                {
+                    Debug.LogError($"LV_LTCGI_Adapter: Could not load post processor material at {matPath}.");
+                }
+
+                var dummyPath = System.IO.Path.Combine(thisDir, "LV_DummyTextureArray.asset");
+                refDummyTextureArray = AssetDatabase.LoadAssetAtPath<Texture2DArray>(dummyPath);
+
+                if (refDummyTextureArray == null)
+                {
+                    Debug.LogError($"LV_LTCGI_Adapter: Could not load dummy texture array at {dummyPath}.");
                 }
             }
 
-            if (refLightVolumeManager != null && refPostProcessorCRT != null)
+            if (refLightVolumeManager != null && refPostProcessorRT != null && refPostProcessorMat != null && refDummyTextureArray != null)
             {
                 // find LTCGI enabled light volumes
                 tmpLTCGIEnabledLightVolumeIDs.Clear();
@@ -140,12 +200,23 @@ namespace pi.LTCGI.LVAdapter
                     // register the CRT as a post processor
                     if (refLightVolumeManager.TryGetComponent<LightVolumeSetup>(out var lvSetup))
                     {
-                        refLightVolumeManager.AtlasPostProcessors ??= new CustomRenderTexture[0]; // workaround for NRE on init
-
                         if (refLTCGIEnabledLightVolumeIDs.Length == 0)
-                            lvSetup.UnregisterPostProcessorCRT(refPostProcessorCRT);
+                        {
+                            lvSetup.UnregisterPostProcessor(refPostProcessorRT);
+                        }
                         else
-                            lvSetup.RegisterPostProcessorCRT(refPostProcessorCRT);
+                        {
+                            RenderTexture rtCopy = refPostProcessorRT;
+                            Material matCopy = refPostProcessorMat;
+                            Texture2DArray dummyTextureArrayCopy = refDummyTextureArray;
+                            lvSetup.RegisterPostProcessor(new LightVolumeSetup.PostProcessor()
+                            {
+                                RT = rtCopy,
+                                Mat = matCopy,
+                                TextureName = "_LV_Volume",
+                                Update = null, // EditorUpdator will handle it
+                            });
+                        }
                     }
                 }
             }
@@ -154,6 +225,19 @@ namespace pi.LTCGI.LVAdapter
     }
 
 #if UNITY_EDITOR && !COMPILER_UDONSHARP
+    [ExecuteAlways]
+    [DefaultExecutionOrder(101)]
+    public class LV_LTCGI_EditorUpdator : MonoBehaviour
+    {
+        public LV_LTCGI_Adapter Adapter;
+
+        public void LateUpdate()
+        {
+            if (EditorApplication.isPlaying || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
+            Adapter.EditorUpdate();
+        }
+    }
+
     [CustomEditor(typeof(LV_LTCGI_Adapter))]
     public class LV_LTCGI_AdapterEditor : Editor
     {
@@ -168,7 +252,6 @@ namespace pi.LTCGI.LVAdapter
         }
 
         private static LightVolumeManager lightVolumeManager;
-        private static CustomRenderTexture postProcessorCRT;
         private static Matrix4x4[] lightVolumeFwdWorldMatrices = new Matrix4x4[32];
         private static List<UdonBehaviour> tmpUdonBehaviours = new();
         private static int[] LTCGIEnabledLightVolumeIDs = new int[0];
@@ -183,14 +266,13 @@ namespace pi.LTCGI.LVAdapter
             if (!FindAndUpdateLVAdapter())
             {
                 var newUdon = LTCGI_Controller.Singleton.gameObject.AddUdonSharpComponent<LV_LTCGI_Adapter>();
-                LV_LTCGI_Adapter.SetupDependencies(ref lightVolumeManager, ref postProcessorCRT, ref newUdon.LTCGIEnabledLightVolumeIDs, isUI: false);
+                LV_LTCGI_Adapter.SetupDependencies(ref lightVolumeManager, ref newUdon.PostProcessorRT, ref newUdon.PostProcessorMat, ref newUdon.DummyTextureArray, ref newUdon.LTCGIEnabledLightVolumeIDs, isUI: false);
                 EditorUtility.SetDirty(newUdon);
                 UdonSharpEditorUtility.CopyProxyToUdon(newUdon);
+                RefreshUpdator();
                 Debug.Log("LV_LTCGI_Adapter: Added to LTCGI_Controller.");
             }
-
-            LV_LTCGI_Adapter.SetupDependencies(ref lightVolumeManager, ref postProcessorCRT, ref LTCGIEnabledLightVolumeIDs, isUI: false);
-            if (lightVolumeManager != null && postProcessorCRT != null)
+            else if (lightVolumeManager != null)
             {
                 var enabledCount = lightVolumeManager.EnabledCount;
                 var enabledIDs = lightVolumeManager.EnabledIDs;
@@ -235,12 +317,32 @@ namespace pi.LTCGI.LVAdapter
                     else
                     {
                         foundLVAdapter = true;
-                        LV_LTCGI_Adapter.SetupDependencies(ref adapter.LightVolumeManager, ref adapter.PostProcessorCRT, ref adapter.LTCGIEnabledLightVolumeIDs, isUI: false);
+                        LV_LTCGI_Adapter.SetupDependencies(ref adapter.LightVolumeManager, ref adapter.PostProcessorRT, ref adapter.PostProcessorMat, ref adapter.DummyTextureArray, ref adapter.LTCGIEnabledLightVolumeIDs, isUI: false);
                         UdonSharpEditorUtility.CopyProxyToUdon(adapter);
+                        RefreshUpdator();
                     }
                 }
             }
             return foundLVAdapter;
+        }
+
+        private static void RefreshUpdator()
+        {
+            var controller = LTCGI_Controller.Singleton;
+            if (controller == null)
+                return;
+
+            var adapter = controller.GetComponent<LV_LTCGI_Adapter>();
+            if (adapter == null)
+                return;
+
+            var updator = controller.GetComponent<LV_LTCGI_EditorUpdator>();
+            if (updator == null)
+            {
+                updator = controller.gameObject.AddComponent<LV_LTCGI_EditorUpdator>();
+            }
+
+            updator.Adapter = adapter;
         }
 
         public override void OnInspectorGUI()
@@ -249,12 +351,15 @@ namespace pi.LTCGI.LVAdapter
                 return;
             
             var adapter = (LV_LTCGI_Adapter)target;
-            LV_LTCGI_Adapter.SetupDependencies(ref adapter.LightVolumeManager, ref adapter.PostProcessorCRT, ref adapter.LTCGIEnabledLightVolumeIDs, isUI: true);
+            LV_LTCGI_Adapter.SetupDependencies(ref adapter.LightVolumeManager, ref adapter.PostProcessorRT, ref adapter.PostProcessorMat, ref adapter.DummyTextureArray, ref adapter.LTCGIEnabledLightVolumeIDs, isUI: true);
             UdonSharpEditorUtility.CopyProxyToUdon(adapter);
+            RefreshUpdator();
 
             EditorGUI.BeginDisabledGroup(true);
             EditorGUILayout.ObjectField("Light Volume Manager", adapter.LightVolumeManager, typeof(LightVolumeManager), true);
-            EditorGUILayout.ObjectField("Post Processor CRT", adapter.PostProcessorCRT, typeof(CustomRenderTexture), false);
+            EditorGUILayout.ObjectField("Post Processor RT", adapter.PostProcessorRT, typeof(RenderTexture), false);
+            EditorGUILayout.ObjectField("Post Processor Material", adapter.PostProcessorMat, typeof(Material), false);
+            EditorGUILayout.ObjectField("Dummy Texture Array", adapter.DummyTextureArray, typeof(Texture2DArray), false);
             EditorGUI.EndDisabledGroup();
 
             EditorGUILayout.Space(10);
