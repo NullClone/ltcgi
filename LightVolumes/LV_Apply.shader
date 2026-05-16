@@ -214,13 +214,21 @@ Shader "LTCGI/LV Apply (Blit)"
                         diff.intensity = 1;
                     }
 
+                    // variables:
+                    // L0b = baked L0 from single-color LTCGI screen
+                    // L1b_[rgb] = baked L1 basis from single-color LTCGI screen
+                    // flags.lmch = lightmap channel configured on the LTCGI_Screen, i.e. which channel of the baked data to use
+                    // l0ch = the R, G or B value extracted from L0b based on flags.lmch, used as the basis to propagate to all channels in the output L0
+                    // l1ch = based on l0ch, selected from L1b_[rgb] to use as the basis to propagate to all channels in the output L1
+                    // rgbL0 = LTC output spread across RGB channels multiplied by l0ch (baked intensity)
+
                     float3 output = diff.color * diff.intensity;
                     float3 rgbL0 = max(0, l0ch) * output;
 
-                    float safeL0 = max(abs(l0ch), 1e-4);
+                    float safeL0 = max(saturate(l0ch), 1e-4);
                     float3 l1Basis = l1ch / safeL0;
 
-                    l1Basis *= _Directionality;
+                    l1Basis *= _Directionality; // fudge factor for artistic control
                     float lenL1 = length(l1Basis);
                     if (lenL1 > 0.98)
                         l1Basis *= 0.98 / lenL1;
