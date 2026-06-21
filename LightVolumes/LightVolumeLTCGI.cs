@@ -1,4 +1,4 @@
-#if VRC_LIGHT_VOLUMES
+#if LTCGI_VRC_LIGHT_VOLUMES
 
 using UnityEngine;
 using UnityEditor;

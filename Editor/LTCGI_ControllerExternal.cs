@@ -155,7 +155,8 @@ namespace pi.LTCGI
                     EditorGUILayout.HelpBox(
 $@"Affected Renderers Total: {LTCGI_Controller.Singleton.cachedMeshRenderers.Length}
 LTCGI_Screen Components: {LTCGI_Controller.Singleton._LTCGI_ScreenTransforms.Count(x => x != null)} / {LTCGI_Controller.MAX_SOURCES}
-AudioLink: {(LTCGI_Controller.AudioLinkAvailable == LTCGI_Controller.AudioLinkAvailability.Unavailable ? "Not Detected" : (LTCGI_Controller.AudioLinkAvailable == LTCGI_Controller.AudioLinkAvailability.AvailableAsset ? "Detected (Asset)" : "Detected (Package)"))}",
+AudioLink: {(LTCGI_Controller.AudioLinkAvailable == LTCGI_Controller.AudioLinkAvailability.Unavailable ? "Not Detected" : (LTCGI_Controller.AudioLinkAvailable == LTCGI_Controller.AudioLinkAvailability.AvailableAsset ? "Detected (Asset)" : "Detected (Package)"))}
+VRCLightVolumes: {(LTCGI_Define.vrcLightVolumesDetected == LTCGI_Define.VRCLVDetected.NotDetected ? "Not Detected" : (LTCGI_Define.vrcLightVolumesDetected == LTCGI_Define.VRCLVDetected.DetectedCompatibleVersion ? "Supported" : "Detected (< 3.x.x), version too old"))}",
                     MessageType.Info, true
                 );
 
@@ -166,6 +167,11 @@ AudioLink: {(LTCGI_Controller.AudioLinkAvailable == LTCGI_Controller.AudioLinkAv
                         LTCGI_Controller.audioLinkAvailable = LTCGI_Controller.AudioLinkAvailability.NeedsCheck;
                         var _ignored = LTCGI_Controller.AudioLinkAvailable;
                     }
+                }
+
+                if (LTCGI_Define.vrcLightVolumesDetected == LTCGI_Define.VRCLVDetected.DetectedOldVersion)
+                {
+                    EditorGUILayout.HelpBox("VRC Light Volumes is installed, but the version is too old (< 3.x.x). Please update to the latest version to enable LTCGI support.", MessageType.Warning);
                 }
             }
             else
