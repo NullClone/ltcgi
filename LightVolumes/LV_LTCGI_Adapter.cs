@@ -208,6 +208,25 @@ namespace pi.LTCGI.LVAdapter
                         }
                     }
                 }
+                if (!difference)
+                {
+                    var found = false;
+                    if (refLightVolumeManager.TryGetComponent<LightVolumeSetup>(out var lvSetup))
+                    {
+                        foreach (var pp in lvSetup.AtlasPostProcessors)
+                        {
+                            if (pp.RT == refPostProcessorRT && pp.Mat == refPostProcessorMat)
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!found)
+                    {
+                        difference = true;
+                    }
+                }
                 if (difference)
                 {
                     refLTCGIEnabledLightVolumeIDs = tmpLTCGIEnabledLightVolumeIDs.ToArray();
@@ -224,7 +243,6 @@ namespace pi.LTCGI.LVAdapter
                         {
                             RenderTexture rtCopy = refPostProcessorRT;
                             Material matCopy = refPostProcessorMat;
-                            Texture2DArray dummyTextureArrayCopy = refDummyTextureArray;
                             lvSetup.RegisterPostProcessor(new LightVolumeSetup.PostProcessor()
                             {
                                 RT = rtCopy,
