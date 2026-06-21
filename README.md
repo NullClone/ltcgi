@@ -36,6 +36,8 @@ To use LTCGI, all objects that should receive lighting must use a compatible sha
 * Basic "Unlit" Test Shader (included)
 * Surface Shader (included)
 
+LTCGI supports [VRC Light Volumes](https://github.com/REDSIM/VRCLightVolumes/) by RED_SIM.
+
 ## Attribution
 
 According to the [License](#License) you are free to use this in your world, but you need to give credit. You are free to do so in whichever way, but you must provide a link to this GitHub repository, such as to fulfill the imported license of the LTC example code used as a base for this project.
