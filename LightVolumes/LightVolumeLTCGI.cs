@@ -45,7 +45,6 @@ namespace pi.LTCGI.LVAdapter
 
             serializedObject.Update();
             serializedObject.FindProperty("Additive").boolValue = true;
-            serializedObject.FindProperty("PointLightShadows").boolValue = false;
             serializedObject.FindProperty("Bake").boolValue = true;
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
