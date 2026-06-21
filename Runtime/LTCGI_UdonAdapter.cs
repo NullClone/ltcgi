@@ -143,6 +143,7 @@ public class LTCGI_UdonAdapter : MonoBehaviour
         for (int i = 0; i < _Renderers.Length; i++)
         {
             var r = _Renderers[i];
+            if (r == null) continue;
             var block = new MaterialPropertyBlock();
             if (r.HasPropertyBlock())
                 r.GetPropertyBlock(block);
