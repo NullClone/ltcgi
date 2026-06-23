@@ -127,8 +127,8 @@ public class LTCGI_UdonAdapter : MonoBehaviour
         GlobalShader.SetGlobalInteger(GlobalShader.PropertyToID("_Udon_LTCGI_ScreenCount"), _LTCGI_ScreenCountMaskedAvatars);
         GlobalShader.SetGlobalInteger(GlobalShader.PropertyToID("_Udon_LTCGI_ScreenCount_LVs"), _LTCGI_ScreenCountMaskedLVs);
         #else
-        GlobalShader.SetGlobalInt(GlobalShader.PropertyToID("_Udon_LTCGI_ScreenCount"), _LTCGI_ScreenCountMaskedAvatars);
-        GlobalShader.SetGlobalInt(GlobalShader.PropertyToID("_Udon_LTCGI_ScreenCount_LVs"), _LTCGI_ScreenCountMaskedLVs);
+        GlobalShader.SetGlobalFloat(GlobalShader.PropertyToID("_Udon_LTCGI_ScreenCount"), _LTCGI_ScreenCountMaskedAvatars);
+        GlobalShader.SetGlobalFloat(GlobalShader.PropertyToID("_Udon_LTCGI_ScreenCount_LVs"), _LTCGI_ScreenCountMaskedLVs);
         #endif
 
         _SetGlobalState(true);
