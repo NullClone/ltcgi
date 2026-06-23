@@ -41,6 +41,14 @@ namespace pi.LTCGI.LVAdapter
                 MessageType.Info
             );
 
+            if (serializedObject.FindProperty("Dynamic").boolValue == false && (target as LightVolumeLTCGI).isActiveAndEnabled == false)
+            {
+                EditorGUILayout.HelpBox(
+                    "This Light Volume is not Dynamic and is disabled. It will never turn on if you don't set Dynamic.",
+                    MessageType.Warning
+                );
+            }
+
             base.OnInspectorGUI();
 
             serializedObject.Update();
