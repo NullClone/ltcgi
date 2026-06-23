@@ -222,7 +222,7 @@ namespace pi.LTCGI.LVAdapter
                             }
                         }
                     }
-                    if (!found)
+                    if (found != (tmpLTCGIEnabledLightVolumeIDs.Count > 0))
                     {
                         difference = true;
                     }
