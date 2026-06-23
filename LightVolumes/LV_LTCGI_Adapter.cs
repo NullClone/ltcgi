@@ -25,6 +25,8 @@ namespace pi.LTCGI.LVAdapter
     [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
     public class LV_LTCGI_Adapter : UdonSharpBehaviour
     {
+        private const int MAX_LVS = 32;
+
         public LightVolumeManager LightVolumeManager;
         public RenderTexture PostProcessorRT;
         public Material PostProcessorMat;
@@ -34,7 +36,7 @@ namespace pi.LTCGI.LVAdapter
         private int lightVolumesWithLTCGIID;
         private int lightVolumeFwdWorldMatrixID;
         private int lightVolumeLayerOffsetID;
-        private Matrix4x4[] lightVolumeFwdWorldMatrices = new Matrix4x4[0];
+        private readonly Matrix4x4[] lightVolumeFwdWorldMatrices = new Matrix4x4[MAX_LVS];
         private long updateCount;
 
         private const int LVsPerSlice = 24; // keep in sync with shader
@@ -54,7 +56,7 @@ namespace pi.LTCGI.LVAdapter
             lightVolumeLayerOffsetID = VRCShader.PropertyToID("_Udon_LTCGI_LV_LayerOffset");
             PostProcessorMat.SetFloat("_Udon_LTCGI_LV_LayerDepth", PostProcessorRT.volumeDepth);
             lightVolumeFwdWorldMatrixID = VRCShader.PropertyToID("_UdonLightVolumeFwdWorldMatrix");
-            VRCShader.SetGlobalMatrixArray(lightVolumeFwdWorldMatrixID, new Matrix4x4[32]);
+            VRCShader.SetGlobalMatrixArray(lightVolumeFwdWorldMatrixID, lightVolumeFwdWorldMatrices);
             lightVolumesWithLTCGIID = VRCShader.PropertyToID("_UdonLightVolumesWithLTCGI");
             VRCShader.SetGlobalFloat(lightVolumesWithLTCGIID, BitConverter.Int32BitsToSingle(0));
         }
@@ -112,8 +114,6 @@ namespace pi.LTCGI.LVAdapter
 
             var enabledCount = LightVolumeManager.EnabledCount;
             var enabledIDs = LightVolumeManager.EnabledIDs;
-            if (enabledCount != lightVolumeFwdWorldMatrices.Length)
-                lightVolumeFwdWorldMatrices = new Matrix4x4[enabledCount];
             
             int enabledVolumes = 0;
             for (int i = 0; i < enabledCount; i++)
