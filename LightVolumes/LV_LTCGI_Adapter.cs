@@ -70,7 +70,7 @@ namespace pi.LTCGI.LVAdapter
 
         private void LateUpdate() // after Update() in LightVolumeManager for the frame
         {
-            if (LightVolumeManager.AutoUpdateVolumes || updateCount == 0)
+            if (LightVolumeManager.AutoUpdateVolumes || updateCount < 2)
                 DoUpdate();
 
             DoLTCGIBlit();
