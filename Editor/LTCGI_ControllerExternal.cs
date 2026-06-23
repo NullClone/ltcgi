@@ -17,7 +17,7 @@ namespace pi.LTCGI
     [CustomEditor(typeof(LTCGI_Controller))]
     public class LTCGI_ControllerEditor : Editor
     {
-        public const string VERSION = "v1.7.0";
+        public const string VERSION = "v1.7.1";
 
         private static readonly string[] CONFIGURATION_PROPS = new[] {
             #if UNITY_STANDALONE
